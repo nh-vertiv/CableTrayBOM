@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Cable Tray &amp; Fixtures BOM</Name>
+    <Assembly>CableTrayBOM.dll</Assembly>
+    <FullClassName>CableTrayBOM.Application</FullClassName>
+    <ClientId>3AE130B5-C23F-456E-A55E-D63A252DA355</ClientId>
+    <VendorId>Vertiv-IS-BIM</VendorId>
+    <VendorDescription>Infrastructure Solutions BIM Program Department</VendorDescription>
+  </AddIn>
+</RevitAddIns>

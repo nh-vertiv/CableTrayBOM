@@ -1,0 +1,287 @@
+<Window x:Class="CableTrayBOM.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cable Tray &amp; Fixtures BOM Generator" 
+        Height="760" Width="960"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F6FA">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#333333"/>
+        <SolidColorBrush x:Key="AccentLightBrush" Color="#4E8CEF"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#333333"/>
+        <SolidColorBrush x:Key="SubtleBrush" Color="#6D6E71"/>
+        <SolidColorBrush x:Key="GoldBrush" Color="#DB9C3F"/>
+        
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Margin" Value="0,10,0,8"/>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#4E8CEF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#DFE6E9"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <Style x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentLightBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <TextBlock Text="{TemplateBinding Content}" 
+                                   Foreground="{TemplateBinding Foreground}"
+                                   TextDecorations="Underline"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CardBorder" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,4"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Cable Tray &amp; Fixtures BOM" FontSize="24" FontWeight="Bold" 
+                       Foreground="{StaticResource AccentBrush}"/>
+            <TextBlock Text="Joint Material Bill of Materials Generator for Revit 2025" 
+                       FontSize="13" Foreground="{StaticResource SubtleBrush}" Margin="0,4,0,0"/>
+            <TextBlock Text="Created by Infrastructure Solutions BIM Program Department" 
+                       FontSize="10" Foreground="{StaticResource SubtleBrush}" Margin="0,2,0,0" FontStyle="Italic"/>
+        </StackPanel>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Element Selection with Check All/None -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="📋 Elements to Process" Style="{StaticResource SectionHeader}" Grid.Column="0"/>
+                            <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center">
+                                <Button Content="Check All" Style="{StaticResource LinkButton}" 
+                                        Click="BtnCheckAll_Click" Margin="0,0,12,0"/>
+                                <Button Content="Check None" Style="{StaticResource LinkButton}" 
+                                        Click="BtnCheckNone_Click"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Cable Trays &amp; Ladders" FontWeight="SemiBold" 
+                                           FontSize="13" Margin="0,0,0,6"/>
+                                <CheckBox x:Name="chkMeshTray" Content="Mesh Cable Trays" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkPerforatedTray" Content="Perforated Cable Trays" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkNonPerforatedTray" Content="Non-Perforated Cable Trays" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkCableLadder" Content="Cable Ladders" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkFiberTray" Content="Fiber Trays" 
+                                          IsChecked="True" Margin="0,3"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Fixtures &amp; Equipment" FontWeight="SemiBold" 
+                                           FontSize="13" Margin="0,0,0,6"/>
+                                <CheckBox x:Name="chkLighting" Content="Lighting Fixtures" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkEmergency" Content="Emergency Lights" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkSockets" Content="Sockets, Spurs &amp; Sensors" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkJunctionBoxes" Content="Junction Boxes" 
+                                          IsChecked="True" Margin="0,3"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Slicing Configuration -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="⚙ Cable Tray Slicing" Style="{StaticResource SectionHeader}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="Standard Slice Length (mm)" FontSize="12" 
+                                           Foreground="{StaticResource SubtleBrush}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtSliceLength" Text="3000" FontSize="14" 
+                                         Padding="8,6" BorderBrush="#CCC"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="12,0,12,0">
+                                <TextBlock Text="Coupling Gap (mm)" FontSize="12" 
+                                           Foreground="{StaticResource SubtleBrush}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtCouplingGap" Text="1.0" FontSize="14" 
+                                         Padding="8,6" BorderBrush="#CCC"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="12,0,0,0">
+                                <TextBlock Text="GSV34FT % of GKS34FT" FontSize="12" 
+                                           Foreground="{StaticResource SubtleBrush}" Margin="0,0,0,4"/>
+                                <TextBox x:Name="txtGSVPercentage" Text="15" FontSize="14" 
+                                         Padding="8,6" BorderBrush="#CCC"/>
+                            </StackPanel>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <CheckBox x:Name="chkIncludeEarthing" Content="Include earthing bridge at connections" 
+                                      IsChecked="True" FontSize="13" VerticalContentAlignment="Center"/>
+                            <CheckBox x:Name="chkRoundUp" Content="Round up partial pieces to full order qty" 
+                                      IsChecked="True" FontSize="13" VerticalContentAlignment="Center" 
+                                      Margin="24,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Output Options -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="📄 Output Options" Style="{StaticResource SectionHeader}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <CheckBox x:Name="chkExportCableTrayBOM" 
+                                          Content="Export Cable Trays &amp; Ladders BOM (Excel)" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkExportFixtureBOM" 
+                                          Content="Export Small Power &amp; Lighting Fixtures BOM (Excel)" 
+                                          IsChecked="True" Margin="0,3"/>
+                                <CheckBox x:Name="chkCutTrays" 
+                                          Content="Cut cable trays into standard pieces (inserts coupling gaps)" 
+                                          IsChecked="False" Margin="0,3" FontWeight="SemiBold"/>
+                                <CheckBox x:Name="chkGroupByRoom" 
+                                          Content="Include Room-level Breakdown" 
+                                          IsChecked="True" Margin="0,3"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <Button x:Name="btnBrowse" Content="Browse Output Folder..." 
+                                        Style="{StaticResource SecondaryButton}" Click="BtnBrowse_Click"
+                                        Margin="0,0,0,8"/>
+                                <TextBlock x:Name="txtOutputPath" Text="(Desktop)" FontSize="11" 
+                                           Foreground="{StaticResource SubtleBrush}" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Summary Preview -->
+                <Border Style="{StaticResource CardBorder}">
+                    <StackPanel>
+                        <TextBlock Text="📊 Model Summary" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock x:Name="txtSummary" FontSize="13" 
+                                   Foreground="{StaticResource SubtleBrush}"
+                                   TextWrapping="Wrap"
+                                   Text="Click 'Scan Model' to see element counts from the current Revit project."/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Progress -->
+        <StackPanel Grid.Row="2" Margin="0,12,0,8">
+            <ProgressBar x:Name="progressBar" Height="6" IsIndeterminate="False" Value="0"
+                         Background="#E0E0E0" Foreground="{StaticResource AccentBrush}"/>
+            <TextBlock x:Name="txtStatus" Text="Ready" FontSize="12" 
+                       Foreground="{StaticResource SubtleBrush}" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Setup & Generate Buttons -->
+        <StackPanel Grid.Row="3" Margin="0,4,0,0">
+            <!-- Setup Section -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,0,0,6">
+                <TextBlock Text="Setup" FontWeight="Bold" FontSize="11" Foreground="#888"
+                           VerticalAlignment="Center" Width="50" Margin="0,0,4,0"/>
+                <Button x:Name="btnCheckImportParams" Content="📥 Check &amp; Import Parameters" 
+                        Style="{StaticResource SecondaryButton}" Click="BtnCheckImportParams_Click"
+                        Margin="0,0,8,0"/>
+                <Button x:Name="btnCheckTypes" Content="🔧 Check Types" 
+                        Style="{StaticResource SecondaryButton}" Click="BtnCheckTypes_Click"
+                        Margin="0,0,8,0"/>
+                <Button x:Name="btnSettings" Content="⚙ Settings" 
+                        Style="{StaticResource SecondaryButton}" Click="BtnSettings_Click"/>
+            </StackPanel>
+            <!-- Generate Section -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                <TextBlock Text="Generate" FontWeight="Bold" FontSize="11" Foreground="#888"
+                           VerticalAlignment="Center" Width="50" Margin="0,0,4,0"/>
+                <Button x:Name="btnScan" Content="🔍 Scan Model" 
+                        Style="{StaticResource SecondaryButton}" Click="BtnScan_Click"
+                        Margin="0,0,8,0"/>
+                <Button x:Name="btnUpdateCounts" Content="📝 Update Parameters" 
+                        Style="{StaticResource ActionButton}" Click="BtnUpdateCounts_Click"
+                        Margin="0,0,8,0"/>
+                <Button x:Name="btnRevitSchedules" Content="📊 Revit Schedules" 
+                        Style="{StaticResource ActionButton}" Click="BtnRevitSchedules_Click"
+                        Margin="0,0,8,0"/>
+                <Button x:Name="btnExportSchedule" Content="📋 Export Excel" 
+                        Style="{StaticResource ActionButton}" Click="BtnExportSchedule_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>
