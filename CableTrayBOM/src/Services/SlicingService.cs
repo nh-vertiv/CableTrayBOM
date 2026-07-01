@@ -6,9 +6,26 @@ using CableTrayBOM.Models;
 namespace CableTrayBOM.Services
 {
     /// <summary>
-    /// Service that handles slicing cable trays/ladders into standard lengths.
-    /// Maintains routing integrity by not cutting fittings (bends, tees, risers).
-    /// Adds 1mm coupling gap at each connection point.
+    /// Slices cable tray segments into standard-length pieces for BOM ordering.
+    ///
+    /// LADDER / PERFORATED / NON-PERFORATED / FIBER trays (existing logic, unchanged):
+    ///   - Fittings (IsFitting = true, IsMeshChannel = false) are never sliced.
+    ///   - Straight segments are divided into fullPieces × sliceLength + remainder.
+    ///   - Remainder is kept as-is (no rounding).
+    ///
+    /// MESH CHANNEL trays (_Channel suffix, IsMeshChannel = true):
+    ///   - The tray is factory-bent, not cut at direction changes.
+    ///   - Both straight CableTray segments AND CableTrayFitting bends/offsets
+    ///     with _Channel are treated as orderable stock pieces.
+    ///   - Fittings (IsFitting = true AND IsMeshChannel = true) ARE sliced
+    ///     using the same logic as straights — they contribute their bounding-box
+    ///     length as stock pieces.
+    ///   - Remainder piece length is rounded UP to the nearest
+    ///     MeshChannelLengthIncrementMm (default 100 mm).
+    ///     e.g. remainder 1450 mm → ordered as 1500 mm (cut from a 3000 mm stock).
+    ///   - Full 3000 mm pieces are already multiples of 100 mm — no rounding needed.
+    ///   - Couplings (ConnectionCount-driven hardware) exist only at piece-to-piece
+    ///     joints. Non-_Channel fittings at run ends are NOT counted.
     /// </summary>
     public class SlicingService
     {
@@ -20,17 +37,15 @@ namespace CableTrayBOM.Services
         }
 
         /// <summary>
-        /// Slice a cable tray segment into standard-length pieces.
-        /// Fittings are never sliced. Straight segments are divided into
-        /// pieces of the specified standard length plus remainder.
+        /// Slice a single cable tray segment into standard-length pieces.
         /// </summary>
         public void SliceSegment(CableTraySegment segment, double? customSliceLength = null)
         {
             double sliceLength = customSliceLength ?? _settings.DefaultSliceLength;
             segment.SlicedPieces.Clear();
 
-            // Fittings (bends, tees, risers, etc.) are NEVER sliced
-            if (segment.IsFitting)
+            // Non-mesh fittings (ladder bends, tees, etc.) are NEVER sliced.
+            if (segment.IsFitting && !segment.IsMeshChannel)
             {
                 segment.SlicedPieces.Add(new SlicedPiece
                 {
@@ -39,23 +54,24 @@ namespace CableTrayBOM.Services
                     IsFullLength = false,
                     OrderPieces = 1
                 });
-                // Do NOT set ConnectionCount here — it comes from actual connector analysis
                 return;
             }
 
             double totalLength = segment.OriginalLength;
-
             if (totalLength <= 0)
-            {
-                // Do NOT reset ConnectionCount — it comes from actual connector analysis
                 return;
-            }
 
-            // Simple calculation: how many full pieces fit, plus remainder
-            // Each piece is sliceLength (e.g. 3000mm). Coupling gaps (1mm each) are
-            // for ordering/installation but don't change how we divide the length.
             int fullPieces = (int)Math.Floor(totalLength / sliceLength);
             double remainder = totalLength - (fullPieces * sliceLength);
+
+            // For mesh channel segments, round remainder UP to nearest 100 mm increment.
+            // Full pieces are already exact multiples of the increment — no change needed.
+            if (segment.IsMeshChannel && remainder > _settings.CouplingGap)
+            {
+                double inc = _settings.MeshChannelLengthIncrementMm;
+                if (inc > 1)
+                    remainder = Math.Ceiling(remainder / inc) * inc;
+            }
 
             // Add full-length pieces
             for (int i = 0; i < fullPieces; i++)
@@ -69,22 +85,18 @@ namespace CableTrayBOM.Services
                 });
             }
 
-            // Add remainder piece if any
-            if (remainder > _settings.CouplingGap) // Only if there's meaningful length left
+            // Add remainder piece if any meaningful length remains
+            if (remainder > _settings.CouplingGap)
             {
                 segment.SlicedPieces.Add(new SlicedPiece
                 {
                     Length = remainder,
                     LengthWithCoupling = remainder + _settings.CouplingGap,
                     IsFullLength = false,
-                    // Round up: a partial piece still requires ordering 1 full piece
+                    // A partial piece always requires ordering 1 full standard-length piece
                     OrderPieces = _settings.RoundUpOrderQuantity ? 1 : 0
                 });
             }
-
-            // Do NOT set ConnectionCount from slice count.
-            // ConnectionCount comes only from actual Revit connector analysis
-            // in RevitElementCollector.CalculateConnections().
         }
 
         /// <summary>
@@ -99,7 +111,6 @@ namespace CableTrayBOM.Services
 
             foreach (var segment in segments)
             {
-                // Ensure segment is sliced (needed for connection counting)
                 if (segment.SlicedPieces.Count == 0)
                     SliceSegment(segment, customSliceLength);
 
@@ -125,13 +136,28 @@ namespace CableTrayBOM.Services
                 summary.TotalSupports += segment.SupportCount;
             }
 
-            // Calculate order pieces from AGGREGATE total length per type/size
-            // This avoids rounding up each small segment individually
-            foreach (var summary in orderMap.Values)
+            // Calculate order pieces from AGGREGATE total length per type/size.
+            // For mesh channel, also apply the 100 mm increment rounding to the
+            // aggregate remainder — consistent with per-segment rounding.
+            foreach (var kvp in orderMap)
             {
+                var summary = kvp.Value;
                 double totalLen = summary.TotalOriginalLengthMm;
                 int fullPieces = (int)Math.Floor(totalLen / sliceLength);
                 double remainder = totalLen - (fullPieces * sliceLength);
+
+                // Determine if all segments in this key are mesh channel.
+                // We re-inspect the segments to check IsMeshChannel on the key group.
+                bool isMeshChannelGroup = segments
+                    .Where(s => $"{s.TrayType}|{s.Size}|{s.PartNumber}|{s.ServiceType}" == kvp.Key)
+                    .All(s => s.IsMeshChannel);
+
+                if (isMeshChannelGroup && remainder > 0)
+                {
+                    double inc = _settings.MeshChannelLengthIncrementMm;
+                    if (inc > 1)
+                        remainder = Math.Ceiling(remainder / inc) * inc;
+                }
 
                 summary.FullPieces = fullPieces;
                 summary.PartialPieces = remainder > 0 ? 1 : 0;

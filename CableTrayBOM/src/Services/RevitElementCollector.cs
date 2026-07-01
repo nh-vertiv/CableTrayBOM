@@ -129,6 +129,9 @@ namespace CableTrayBOM.Services
                 double lenMm = lp != null && lp.HasValue
                     ? UnitUtils.ConvertFromInternalUnits(lp.AsDouble(), UnitTypeId.Millimeters) : 0;
 
+                // Detect mesh channel: type name contains "_Channel" (case-insensitive)
+                bool isMeshChannel = typeName.IndexOf("_Channel", StringComparison.OrdinalIgnoreCase) >= 0;
+
                 var seg = new CableTraySegment
                 {
                     ElementId = ct.Id.ToString(),
@@ -137,6 +140,7 @@ namespace CableTrayBOM.Services
                     Size = $"{wMm:F0}x{hMm:F0}",
                     Width = wMm, Height = hMm, OriginalLength = lenMm,
                     IsFitting = false,
+                    IsMeshChannel = isMeshChannel,
                     Orientation = DetermineOrientation(ct),
                     Level = GetLevel(ct),
                     PartNumber = GetParam(ct, "Part Number") ?? GetParam(ct, "Mark") ?? "",
@@ -145,7 +149,7 @@ namespace CableTrayBOM.Services
                     Mounting = DetermineMounting(ct),
                     ServiceType = GetParam(ct, "Service Type") ?? "",
                     IsInGroup = ct.GroupId != ElementId.InvalidElementId,
-                    GroupName = ct.GroupId != ElementId.InvalidElementId 
+                    GroupName = ct.GroupId != ElementId.InvalidElementId
                         ? (_doc.GetElement(ct.GroupId)?.Name ?? "Unknown Group") : ""
                 };
                 AssignRoom(seg, ct);
@@ -178,12 +182,16 @@ namespace CableTrayBOM.Services
                         UnitTypeId.Millimeters);
                 }
 
+                // Detect mesh channel: type name contains "_Channel" (case-insensitive)
+                bool isMeshChannel = typeName.IndexOf("_Channel", StringComparison.OrdinalIgnoreCase) >= 0;
+
                 var seg = new CableTraySegment
                 {
                     ElementId = fi.Id.ToString(), RevitUniqueId = fi.UniqueId,
                     TrayType = ClassifyTrayType(familyName, typeName),
                     Size = $"{wMm:F0}x{hMm:F0}", Width = wMm, Height = hMm,
                     OriginalLength = lenMm, IsFitting = true,
+                    IsMeshChannel = isMeshChannel,
                     Fitting = ClassifyFitting(familyName, typeName),
                     Orientation = Orientation.Horizontal, Level = GetLevel(fi),
                     Description = $"{ClassifyFitting(familyName, typeName)} - {typeName}",
@@ -297,15 +305,12 @@ namespace CableTrayBOM.Services
             EnsureLinkedRoomCache();
             if (_linkedRoomCache == null || _linkedRoomCache.Count == 0) return ("", "");
 
-            // Quick XY pre-filter: only test rooms whose bounding box contains the point XY
-            // then test exact point and Z offsets only on candidates
             double[] zOffsets = { 0, -0.5, -1.0, -1.5, -2.0, -3.0, 0.5, 1.0 };
 
             foreach (double zOff in zOffsets)
             {
                 foreach (var ri in _linkedRoomCache)
                 {
-                    // Skip rooms that are far away (XY bounding box pre-filter)
                     if (ri.BbMin != null && ri.BbMax != null)
                     {
                         XYZ tp = ri.LinkDocument != _doc
@@ -332,7 +337,6 @@ namespace CableTrayBOM.Services
         {
             try
             {
-                // Try midpoint first (fastest path, covers 90%+ of cases)
                 XYZ? midPoint = null;
                 if (element.Location is LocationCurve lc && lc.Curve != null)
                     midPoint = lc.Curve.Evaluate(0.5, true);
@@ -348,7 +352,6 @@ namespace CableTrayBOM.Services
                     }
                 }
 
-                // Fallback: try endpoints only if midpoint failed
                 if (element.Location is LocationCurve lc2 && lc2.Curve != null)
                 {
                     foreach (var pt in new[] { lc2.Curve.GetEndPoint(0), lc2.Curve.GetEndPoint(1) })
@@ -361,7 +364,6 @@ namespace CableTrayBOM.Services
                     }
                 }
 
-                // Last resort: read from element parameters
                 segment.RoomName = GetParam(element, "Room Name") ?? GetParam(element, "Room") ?? "";
                 segment.RoomNumber = GetParam(element, "Room Number") ?? "";
             }
@@ -583,7 +585,6 @@ namespace CableTrayBOM.Services
             sb.AppendLine($"Segments: {segments.Count}");
             sb.AppendLine();
 
-            // Detection engine details
             if (_detectionEngine != null)
             {
                 sb.AppendLine("--- DETECTION ENGINE DIAGNOSTICS ---");
@@ -594,6 +595,7 @@ namespace CableTrayBOM.Services
             foreach (var s in segments.Take(200))
                 sb.AppendLine($"  ID={s.ElementId} {s.TrayType} {s.Size} L={s.OriginalLength:F0}mm " +
                     $"Sup={s.SupportCount} Conn={s.ConnectionCount} Fit={s.IsFitting} " +
+                    $"MeshCh={s.IsMeshChannel} " +
                     $"Room={s.RoomNumber}-{s.RoomName} Mount={s.Mounting}");
 
             sb.AppendLine("\n--- ROOM CACHE ---");
@@ -622,7 +624,7 @@ namespace CableTrayBOM.Services
         public Room Room { get; set; } = null!;
         public Transform LinkTransform { get; set; } = Transform.Identity;
         public Document LinkDocument { get; set; } = null!;
-        public XYZ? BbMin { get; set; }  // Room bounding box for fast XY pre-filter
+        public XYZ? BbMin { get; set; }
         public XYZ? BbMax { get; set; }
     }
 }
