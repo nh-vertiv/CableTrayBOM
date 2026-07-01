@@ -93,6 +93,16 @@ namespace CableTrayBOM.Models
         public bool IsFitting { get; set; }            // Is this a fitting (bend, tee, etc.)
         public FittingType? Fitting { get; set; }
 
+        /// <summary>
+        /// True when the element's Revit type name contains "_Channel" (case-insensitive).
+        /// These are mesh cable tray elements (both straight CableTray and CableTrayFitting
+        /// variants) that are factory-bent as one continuous piece. They follow different
+        /// slicing rules: fittings contribute their length to the stock-piece count,
+        /// remainder pieces are rounded up to the nearest 100 mm, and QuickSlice is
+        /// disabled for them entirely.
+        /// </summary>
+        public bool IsMeshChannel { get; set; }
+
         // Calculated after slicing
         public List<SlicedPiece> SlicedPieces { get; set; } = new();
         public int ConnectionCount { get; set; }       // Number of connections/couplings
@@ -182,191 +192,3 @@ namespace CableTrayBOM.Models
         public string RoomName { get; set; } = "";
         public string RoomNumber { get; set; } = "";
         public Dictionary<string, int> JointMaterials { get; set; } = new();
-        public string Comment { get; set; } = "";
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // ROOM SUMMARY
-    // ═══════════════════════════════════════════════════════════════════
-
-    public class RoomBOMSummary
-    {
-        public string RoomName { get; set; } = "";
-        public string RoomNumber { get; set; } = "";
-        public string Level { get; set; } = "";
-        public List<BOMLineItem> CableTrayItems { get; set; } = new();
-        public List<BOMLineItem> CableLadderItems { get; set; } = new();
-        public List<BOMLineItem> FixtureItems { get; set; } = new();
-        public Dictionary<string, int> TotalJointMaterials { get; set; } = new();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // SETTINGS
-    // ═══════════════════════════════════════════════════════════════════
-
-    public class BOMSettings
-    {
-        public double DefaultSliceLength { get; set; } = 3000;  // mm (3 meters)
-        public double CouplingGap { get; set; } = 1;            // mm
-        public double GSV34FTPercentage { get; set; } = 15;     // % of GKS34FT
-        public bool IncludeEarthingBridge { get; set; } = true;
-        public bool RoundUpOrderQuantity { get; set; } = true;
-
-        // Joint material quantities per support (Mupro) - Cable Trays
-        public Dictionary<string, int> MeshTrayJointPerSupport { get; set; } = new()
-        {
-            { "(137) Bolt DIN 7985 M6x20 ZN", 2 },
-            { "(119) Threaded plate M6 ZN", 2 },
-            { "(100) Clamp for screw M6", 2 }
-        };
-
-        // Joint material quantities per connection - Mesh Cable Tray
-        public Dictionary<string, int> MeshTrayJointPerConnection { get; set; } = new()
-        {
-            { "(99) Clamping element GKS34FT", 3 },
-        };
-
-        // Cable Ladder joint per support
-        public Dictionary<string, int> LadderJointPerSupport { get; set; } = new()
-        {
-            { "(137) Bolt DIN 7985 M6x20 ZN", 2 },
-            { "(23) Washer DIN 9021 M6 ZN", 2 },
-            { "(119) Threaded plate M6 ZN", 2 }
-        };
-
-        // Cable Ladder joint per connection
-        public Dictionary<string, int> LadderJointPerConnection { get; set; } = new()
-        {
-            { "(N/A) Straight connector", 2 },
-            { "(N/A) Truss-head bolt with nut 6x12", 8 }  // 4 per connector, 2 connectors
-        };
-
-        // Perforated Cable Tray joint per support
-        public Dictionary<string, int> PerforatedTrayJointPerSupport { get; set; } = new()
-        {
-            { "(137) Bolt DIN 7985 M6x20 ZN", 2 },
-            { "(23) Washer DIN 9021 M6 ZN", 2 },
-            { "(119) Threaded plate M6 ZN", 2 }
-        };
-
-        // Perforated Cable Tray joint per connection
-        public Dictionary<string, int> PerforatedTrayJointPerConnection { get; set; } = new()
-        {
-            { "(N/A) Straight connector", 2 },
-            { "(N/A) Joint plate", 1 },
-            { "(N/A) Truss-head bolt with nut 6x12", 16 }  // 8 per connector + 8 per joint plate
-        };
-
-        // Non-Perforated Cable Tray joint per support
-        public Dictionary<string, int> NonPerforatedTrayJointPerSupport { get; set; } = new()
-        {
-            { "(137) Bolt DIN 7985 M6x20 ZN", 2 },
-            { "(23) Washer DIN 9021 M6 ZN", 2 },
-            { "(119) Threaded plate M6 ZN", 2 }
-        };
-
-        // Non-Perforated Cable Tray joint per connection
-        public Dictionary<string, int> NonPerforatedTrayJointPerConnection { get; set; } = new()
-        {
-            { "Truss-head bolt with flange nut 6x16", 2 }
-        };
-
-        // Fiber Tray joint per support (Console mounting)
-        public Dictionary<string, int> FiberTrayJointPerSupport { get; set; } = new()
-        {
-            { "(66) Bolt DIN 933 M6x12 8.8 ZN", 2 },
-            { "(101) Rail nut M6 18X18", 2 },
-            { "(4) Washer DIN 125 M6 ZN", 2 }
-        };
-
-        // Fiber Tray joint per connection
-        public Dictionary<string, int> FiberTrayJointPerConnection { get; set; } = new()
-        {
-            { "(N/A) Fibre Runner Coupler", 1 }
-        };
-
-        // Mesh Tray to Console joint per support
-        public Dictionary<string, int> MeshTrayConsoleJointPerSupport { get; set; } = new()
-        {
-            { "(21) Bolt DIN 7985 M6x25 ZN", 2 },
-            { "(100) Clamp for screw M6", 2 },
-            { "(33) Nut DIN 934 M6 ZN", 2 }
-        };
-
-        // Mesh Tray to Console joint per connection
-        public Dictionary<string, int> MeshTrayConsoleJointPerConnection { get; set; } = new()
-        {
-            { "(99) Clamping element GKS34FT", 3 },
-        };
-
-        // ───────────────────────────────────────────────────────────
-        // FIXTURE JOINT MATERIALS
-        // ───────────────────────────────────────────────────────────
-
-        // Lighting Fixture - Support Channel Mounting
-        public Dictionary<string, int> LightingChannelJoint { get; set; } = new()
-        {
-            { "(85) ISO 7380 MF M6x20 10.9 ZN", 2 },
-            { "(119) Threaded plate M6 ZN", 2 }
-        };
-
-        // Lighting Fixture conduit materials per fixture
-        public Dictionary<string, int> LightingConduitMaterials { get; set; } = new()
-        {
-            { "(132) SIDE HOLDER FOR CABLE GLAND 25mm", 1 },
-            { "(133) LOCKNUT 25mm FOR FLEXIBLE CONDUIT GLAND", 2 },
-            { "(134) MALE FIXED FITTING + RING 25mm", 2 }
-        };
-
-        public double FlexibleConduitLengthPerFixtureMm { get; set; } = 400;
-
-        // Panel mounting
-        public Dictionary<string, int> LightingPanelJoint { get; set; } = new()
-        {
-            { "(38) JF2-2-5.5X25-V16ZN", 0 },  // varies
-            { "(23) DIN9021-M6-ZN", 0 }          // varies
-        };
-
-        // Junction Box - Mesh Tray Mounting
-        public Dictionary<string, int> JunctionBoxMeshTrayJoint { get; set; } = new()
-        {
-            { "(92) MOUNTING PLATE FOR MESH CABLE TRAY MPG 90 FT", 1 },
-            { "(21) BOLT DIN 7985 M6X25 ZN", 4 },
-            { "(4) WASHER DIN 125 M6 ZN", 8 },
-            { "(33) NUT DIN 934 M6 ZN", 4 },
-            { "(132) SIDE HOLDER FOR CABLE GLAND 25mm", 1 },
-            { "(133) LOCKNUT 25mm FOR FLEXIBLE CONDUIT GLAND", 1 },
-            { "(134) MALE FIXED FITTING + RING 25mm", 1 },
-            { "(139) RUBBER END GZ16", 1 }
-        };
-
-        // Junction Box - Panel Mounting
-        public Dictionary<string, int> JunctionBoxPanelJoint { get; set; } = new()
-        {
-            { "(38) JF2-2-5.5x25-V16", 4 },
-            { "(133) LOCKNUT 25mm FOR FLEXIBLE CONDUIT GLAND", 1 },
-            { "(134) MALE FIXED FITTING + RING 25mm", 1 },
-            { "(139) RUBBER END GZ16", 1 }
-        };
-
-        // Socket/Spur - Panel Mounting
-        public Dictionary<string, int> SocketPanelJoint { get; set; } = new()
-        {
-            { "(38) JF2-2-5.5X25-V16ZN", 0 },
-            { "(23) DIN9021-M6-ZN", 0 },
-            { "(133) LOCKNUT 25mm FOR FLEXIBLE CONDUIT GLAND", 0 },
-            { "(134) MALE FIXED FITTING + RING 25mm", 0 }
-        };
-
-        // ───────────────────────────────────────────────────────────
-        // RECTANGULAR PRISM DETECTION TOLERANCES
-        // The Z-check uses the tray BOUNDING BOX Z range (not centerline).
-        // "Above" means above the BB top, "Below" means below BB bottom.
-        // Suspension insertion points are typically 0-500mm above tray top.
-        // ───────────────────────────────────────────────────────────
-        public double VerticalToleranceAboveMm { get; set; } = 500.0;
-        public double VerticalToleranceBelowMm { get; set; } = 50.0;
-        public double HorizontalToleranceMm { get; set; } = 100.0;
-        public double TrayEndExtensionMm { get; set; } = 50.0;
-    }
-}
